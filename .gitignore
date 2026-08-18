@@ -1,0 +1,15 @@
+# 编译生成的文件
+*.exe
+*.o
+*.out
+*.obj
+
+# VS Code 配置文件
+.vscode/
+
+# Windows 系统文件
+Thumbs.db
+desktop.ini
+
+# Linux 系统文件
+.DS_Store
