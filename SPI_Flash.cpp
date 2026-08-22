@@ -1,36 +1,81 @@
 #include "SPI_Flash.h"
-#include <algorithm>
 
-VirtualFlash::VirtualFlash() : memory(4096, 0xFF), writeProtected(false) {}
+VirtualFlash::VirtualFlash()
+    : memory(FLASH_SIZE, 0xFF), writeProtected(false), busy(false)
+{}
 
-void VirtualFlash::Write(uint32_t addr, const std::vector<uint8_t>& data) {
-    if (writeProtected) return;  // 写保护则忽略
-    for (size_t i = 0; i < data.size() && (addr + i) < memory.size(); ++i) {
-        memory[addr + i] = data[i];
+FlashRet VirtualFlash::Write(uint32_t addr, const std::vector<uint8_t>& data)
+{
+    if (writeProtected) {
+        return FlashRet::WRITE_PROTECTED;
     }
+    if (addr >= FLASH_SIZE) {
+        return FlashRet::ADDR_OUT_RANGE;
+    }
+
+    busy = true;
+    for (size_t i = 0; i < data.size(); ++i) {
+        uint32_t pos = addr + static_cast<uint32_t>(i);
+        if (pos >= FLASH_SIZE) {
+            break;
+        }
+        memory[pos] &= data[i];
+    }
+    busy = false;
+    return FlashRet::OK;
 }
 
-std::vector<uint8_t> VirtualFlash::Read(uint32_t addr, size_t len) {
+std::vector<uint8_t> VirtualFlash::Read(uint32_t addr, size_t len)
+{
     std::vector<uint8_t> result;
-    for (size_t i = 0; i < len && (addr + i) < memory.size(); ++i) {
-        result.push_back(memory[addr + i]);
+    if (addr >= FLASH_SIZE) {
+        return result;
+    }
+    for (size_t i = 0; i < len; ++i) {
+        uint32_t pos = addr + static_cast<uint32_t>(i);
+        if (pos >= FLASH_SIZE) {
+            break;
+        }
+        result.push_back(memory[pos]);
     }
     return result;
 }
 
-void VirtualFlash::Erase(uint32_t addr) {
-    if (writeProtected) return;
-    // 模拟扇区擦除（256字节对齐）
-    uint32_t start = (addr / 256) * 256;
-    for (size_t i = 0; i < 256 && (start + i) < memory.size(); ++i) {
-        memory[start + i] = 0xFF;
+FlashRet VirtualFlash::Erase(uint32_t addr)
+{
+    if (writeProtected) {
+        return FlashRet::WRITE_PROTECTED;
     }
+    if (addr >= FLASH_SIZE) {
+        return FlashRet::ADDR_OUT_RANGE;
+    }
+
+    busy = true;
+    uint32_t start = (addr / SECTOR_SIZE) * SECTOR_SIZE;
+    for (size_t i = 0; i < SECTOR_SIZE; ++i) {
+        uint32_t pos = start + static_cast<uint32_t>(i);
+        if (pos >= FLASH_SIZE) {
+            break;
+        }
+        memory[pos] = 0xFF;
+    }
+    busy = false;
+    return FlashRet::OK;
 }
 
-void VirtualFlash::SetWriteProtect(bool enable) {
+void VirtualFlash::SetWriteProtect(bool enable)
+{
     writeProtected = enable;
 }
 
-uint8_t VirtualFlash::GetStatus() const {
-    return writeProtected ? 0x01 : 0x00;  // 第0位表示写保护状态
+uint8_t VirtualFlash::GetStatus() const
+{
+    uint8_t status = 0x00;
+    if (busy) {
+        status |= (1U << 0); // WIP忙位
+    }
+    if (writeProtected) {
+        status |= (1U << 1); // 写保护位
+    }
+    return status;
 }

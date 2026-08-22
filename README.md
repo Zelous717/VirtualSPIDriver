@@ -18,4 +18,4 @@ VirtualSPIDriver/
 ├── SPI_Flash.cpp        # 类实现
 ├── main.cpp             # 测试入口
 ├── README.md            # 项目说明
-└── .gitignore           # Git忽略配置
+└── .gitignore           # Git忽略

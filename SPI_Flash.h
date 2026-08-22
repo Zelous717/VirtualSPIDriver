@@ -2,19 +2,28 @@
 #include <vector>
 #include <cstdint>
 
-// 模拟 SPI Flash 芯片
+enum class FlashRet {
+    OK,
+    WRITE_PROTECTED,
+    ADDR_OUT_RANGE
+};
+
 class VirtualFlash {
 public:
-    VirtualFlash();  // 构造时初始化内存为 0xFF（空白状态）
+    static constexpr uint32_t FLASH_SIZE = 4096U;
+    static constexpr uint32_t SECTOR_SIZE = 256U;
 
-    // 核心操作
-    void Write(uint32_t addr, const std::vector<uint8_t>& data);
+    VirtualFlash();
+
+    FlashRet Write(uint32_t addr, const std::vector<uint8_t>& data);
     std::vector<uint8_t> Read(uint32_t addr, size_t len);
-    void Erase(uint32_t addr);
+    FlashRet Erase(uint32_t addr);
+
     void SetWriteProtect(bool enable);
     uint8_t GetStatus() const;
 
 private:
-    std::vector<uint8_t> memory;  // 模拟 4KB 存储空间
-    bool writeProtected;          // 写保护标志
+    std::vector<uint8_t> memory;
+    bool writeProtected;
+    bool busy;
 };
